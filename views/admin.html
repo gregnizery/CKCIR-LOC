@@ -11,7 +11,7 @@
   <div class="admin-shell">
     <header class="club-header">
       <div class="logo-line">
-        <img src="/img/logo.svg" class="club-logo" alt="Logo CKCIR" />
+        <img src="/img/logo-ckcir.png" class="club-logo" alt="Logo CKCIR" />
         <h1>Club de Canoë-Kayak de l'Île Robinson (CKCIR Saint-Grégoire)</h1>
       </div>
       <p class="ffck-line">affilié à la Fédération Française de Canoë-Kayak (FFCK)</p>
@@ -38,19 +38,21 @@
         </div>
       </div>
 
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Heure</th>
-            <th>Représentant</th>
-            <th>Participants</th>
-            <th>Montant</th>
-            <th>Règlement</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="jour-tbody"></tbody>
-      </table>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Heure</th>
+              <th>Représentant</th>
+              <th>Participants</th>
+              <th>Montant</th>
+              <th>Règlement</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="jour-tbody"></tbody>
+        </table>
+      </div>
 
       <div class="day-total-bar" id="jour-totals"></div>
 
@@ -80,20 +82,22 @@
 
       <p style="font-size:13px; color:#555;">Saisissez l'UUID du QR code FFCK remis à chaque membre. Cliquez ailleurs sur une ligne pour la copier dans le presse-papier.</p>
 
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>UUID QR code</th>
-            <th>Carte prise</th>
-            <th>Civilité</th>
-            <th>Nom</th>
-            <th>Prénom</th>
-            <th>Date de naissance</th>
-            <th>Email</th>
-          </tr>
-        </thead>
-        <tbody id="licences-tbody"></tbody>
-      </table>
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>UUID QR code</th>
+              <th>Carte prise</th>
+              <th>Civilité</th>
+              <th>Nom</th>
+              <th>Prénom</th>
+              <th>Date de naissance</th>
+              <th>Email</th>
+            </tr>
+          </thead>
+          <tbody id="licences-tbody"></tbody>
+        </table>
+      </div>
     </section>
 
     <!-- ===== ONGLET 3 : Statistiques ===== -->

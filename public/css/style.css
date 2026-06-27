@@ -43,12 +43,9 @@ body {
 }
 
 .club-logo {
-  width: 40px;
   height: 40px;
+  width: auto;
   flex-shrink: 0;
-  background: rgba(192, 57, 43, 0.08);
-  border-radius: 50%;
-  padding: 8px;
 }
 
 .club-header h1 {
@@ -246,6 +243,15 @@ textarea:focus {
 }
 
 /* ===== Tableaux ===== */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll table.data-table {
+  min-width: 600px;
+}
+
 table.data-table {
   width: 100%;
   border-collapse: collapse;
