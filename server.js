@@ -12,6 +12,12 @@ const adminRoutes = require('./routes/admin');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Render/Railway terminent le HTTPS au niveau du proxy et transmettent en
+// HTTP en interne : sans ceci, Express ne voit jamais la connexion comme
+// securisee et le cookie de session (secure: true en production) ne se
+// persiste pas, ce qui renvoie systematiquement vers /admin/login.
+app.set('trust proxy', 1);
+
 app.use(express.json({ limit: '15mb' }));
 app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
