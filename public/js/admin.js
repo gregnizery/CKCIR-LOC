@@ -68,6 +68,17 @@
 
   jourDateInput.addEventListener('change', loadJour);
 
+  // Export des locations sur une periode (par defaut : le mois en cours)
+  const exportStartInput = document.getElementById('locations-export-start');
+  const exportEndInput = document.getElementById('locations-export-end');
+  const today = new Date();
+  exportStartInput.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+  exportEndInput.value = todayStr();
+
+  document.getElementById('locations-export').addEventListener('click', () => {
+    window.location.href = `/admin/api/locations/export?start=${exportStartInput.value}&end=${exportEndInput.value}`;
+  });
+
   // ===== Modal detail =====
   const modal = document.getElementById('detail-modal');
   document.getElementById('detail-close').addEventListener('click', () => modal.classList.add('hidden'));
@@ -137,12 +148,34 @@
       });
       uuidTd.appendChild(uuidInput);
 
+      const carteTd = document.createElement('td');
+      carteTd.style.textAlign = 'center';
+      const carteCheckbox = document.createElement('input');
+      carteCheckbox.type = 'checkbox';
+      carteCheckbox.checked = !!row.carte_prise;
+      carteCheckbox.addEventListener('click', (e) => e.stopPropagation());
+      carteCheckbox.addEventListener('change', async () => {
+        const res = await fetch(`/admin/api/membres/${row.id}/carte-prise`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ carte_prise: carteCheckbox.checked }),
+        });
+        if (res.ok) {
+          const updated = await res.json();
+          row.carte_prise = updated.carte_prise;
+          carteTd.classList.add('row-flash');
+          setTimeout(() => carteTd.classList.remove('row-flash'), 600);
+        }
+      });
+      carteTd.appendChild(carteCheckbox);
+
       tr.appendChild(uuidTd);
+      tr.appendChild(carteTd);
       tr.insertAdjacentHTML('beforeend', `
         <td>${row.civilite}</td><td>${row.nom}</td><td>${row.prenom}</td><td>${dob}</td><td>${row.email}</td>
       `);
       tr.addEventListener('click', () => {
-        const text = [row.qr_uuid || '', row.civilite, row.nom, row.prenom, dob, row.email].join('\t');
+        const text = [row.qr_uuid || '', row.carte_prise ? 'Oui' : 'Non', row.civilite, row.nom, row.prenom, dob, row.email].join('\t');
         navigator.clipboard.writeText(text);
         tr.classList.add('row-flash');
         setTimeout(() => tr.classList.remove('row-flash'), 600);
@@ -170,6 +203,10 @@
       currentPeriod = btn.dataset.period;
       loadStats();
     });
+  });
+
+  document.getElementById('stats-export').addEventListener('click', () => {
+    window.location.href = `/admin/api/stats/export?period=${currentPeriod}`;
   });
 
   function destroyChart(c) {

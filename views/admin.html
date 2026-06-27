@@ -53,6 +53,18 @@
       </table>
 
       <div class="day-total-bar" id="jour-totals"></div>
+
+      <div class="filter-row" style="margin-top:24px;">
+        <div class="field">
+          <label for="locations-export-start">Exporter du</label>
+          <input type="date" id="locations-export-start" />
+        </div>
+        <div class="field">
+          <label for="locations-export-end">au</label>
+          <input type="date" id="locations-export-end" />
+        </div>
+        <button class="btn btn-secondary" id="locations-export">Exporter CSV</button>
+      </div>
     </section>
 
     <!-- ===== ONGLET 2 : Licences FFCK ===== -->
@@ -72,6 +84,7 @@
         <thead>
           <tr>
             <th>UUID QR code</th>
+            <th>Carte prise</th>
             <th>Civilité</th>
             <th>Nom</th>
             <th>Prénom</th>
@@ -94,6 +107,7 @@
             <button class="btn btn-secondary stats-period" data-period="year">Année</button>
           </div>
         </div>
+        <button class="btn btn-secondary" id="stats-export">Exporter CSV</button>
       </div>
 
       <div class="stat-cards">

@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS membres (
   civilite TEXT NOT NULL,
   date_naissance DATE NOT NULL,
   ordre INTEGER NOT NULL,
-  qr_uuid TEXT
+  qr_uuid TEXT,
+  carte_prise BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE INDEX IF NOT EXISTS idx_locations_date ON locations (date_location);
@@ -43,3 +44,7 @@ ALTER TABLE membres DROP COLUMN IF EXISTS signature;
 
 -- Migration : UUID du QR code FFCK saisi par le staff pour l'export licences.
 ALTER TABLE membres ADD COLUMN IF NOT EXISTS qr_uuid TEXT;
+
+-- Migration : le club prend une carte FFCK "1 jour" pour chaque locataire ;
+-- on note si c'est fait pour pouvoir suivre les oublis.
+ALTER TABLE membres ADD COLUMN IF NOT EXISTS carte_prise BOOLEAN NOT NULL DEFAULT FALSE;

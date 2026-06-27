@@ -108,11 +108,58 @@ router.get('/api/locations', requireAdmin, async (req, res) => {
   res.json({ date, locations: result.rows, totals });
 });
 
+router.get('/api/locations/export', requireAdmin, async (req, res) => {
+  const end = req.query.end || todayStr();
+  const start = req.query.start || end;
+
+  const result = await pool.query(
+    `SELECT date_location, heure_location, representant_nom, representant_prenom,
+            representant_adresse, representant_ville, representant_cp, representant_tel,
+            representant_email, source_decouverte, nb_participants, montant_total,
+            type_reglement, statut
+     FROM locations
+     WHERE date_location BETWEEN $1 AND $2
+     ORDER BY date_location ASC, heure_location ASC`,
+    [start, end],
+  );
+
+  const header = ['Date', 'Heure', 'Nom', 'Prenom', 'Adresse', 'Ville', 'Code postal', 'Telephone', 'Email', 'Source', 'Participants', 'Montant', 'Reglement', 'Statut'];
+  const csvLines = [header.join(';')];
+
+  result.rows.forEach((row) => {
+    const sources = Array.isArray(row.source_decouverte) ? row.source_decouverte : [];
+    const line = [
+      new Date(row.date_location).toLocaleDateString('fr-FR'),
+      row.heure_location,
+      row.representant_nom,
+      row.representant_prenom,
+      row.representant_adresse,
+      row.representant_ville,
+      row.representant_cp,
+      row.representant_tel,
+      row.representant_email,
+      sources.map((s) => SOURCE_LABELS[s] || s).join(', '),
+      row.nb_participants,
+      Number(row.montant_total).toFixed(2),
+      row.type_reglement,
+      row.statut,
+    ];
+    csvLines.push(line.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';'));
+  });
+
+  const bom = '﻿';
+  const csv = bom + csvLines.join('\r\n');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="locations-${start}_${end}.csv"`);
+  res.send(csv);
+});
+
 // ===== API: licences FFCK =====
 
 async function getLicencesRows(date) {
   const result = await pool.query(
-    `SELECT m.id, m.civilite, m.nom, m.prenom, m.date_naissance, m.qr_uuid,
+    `SELECT m.id, m.civilite, m.nom, m.prenom, m.date_naissance, m.qr_uuid, m.carte_prise,
             l.representant_email AS email, l.date_location
      FROM membres m
      JOIN locations l ON l.id = m.location_id
@@ -136,6 +183,22 @@ router.patch('/api/membres/:id/qr-uuid', requireAdmin, async (req, res) => {
   const result = await pool.query(
     'UPDATE membres SET qr_uuid = $1 WHERE id = $2 RETURNING id, qr_uuid',
     [qrUuid || null, id],
+  );
+
+  if (!result.rows.length) {
+    return res.status(404).json({ error: 'Membre introuvable' });
+  }
+
+  res.json(result.rows[0]);
+});
+
+router.patch('/api/membres/:id/carte-prise', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const cartePrise = req.body.carte_prise === true;
+
+  const result = await pool.query(
+    'UPDATE membres SET carte_prise = $1 WHERE id = $2 RETURNING id, carte_prise',
+    [cartePrise, id],
   );
 
   if (!result.rows.length) {
@@ -197,9 +260,8 @@ router.get('/api/licences/export.xlsx', requireAdmin, async (req, res) => {
 
 // ===== API: statistiques =====
 
-router.get('/api/stats', requireAdmin, async (req, res) => {
-  const period = ['week', 'month', 'year'].includes(req.query.period) ? req.query.period : 'week';
-  const { start, end } = dateRangeForPeriod(period, req.query.date || todayStr());
+async function computeStats(period, refDateStr) {
+  const { start, end } = dateRangeForPeriod(period, refDateStr);
 
   const result = await pool.query(
     `SELECT date_location, heure_location, nb_participants, montant_total,
@@ -248,21 +310,61 @@ router.get('/api/stats', requireAdmin, async (req, res) => {
     .slice(0, 5)
     .map(([heure, count]) => ({ heure, count }));
 
-  res.json({
+  return {
     period,
     start,
     end,
-    totals: {
-      nbLocations,
-      nbParticipants,
-      chiffreAffaires,
-      panierMoyen,
-    },
+    totals: { nbLocations, nbParticipants, chiffreAffaires, panierMoyen },
     frequentationParJour,
     repartitionReglement,
     sourcesDecouverte,
     topCreneaux,
-  });
+  };
+}
+
+router.get('/api/stats', requireAdmin, async (req, res) => {
+  const period = ['week', 'month', 'year'].includes(req.query.period) ? req.query.period : 'week';
+  const stats = await computeStats(period, req.query.date || todayStr());
+  res.json(stats);
+});
+
+router.get('/api/stats/export', requireAdmin, async (req, res) => {
+  const period = ['week', 'month', 'year'].includes(req.query.period) ? req.query.period : 'week';
+  const stats = await computeStats(period, req.query.date || todayStr());
+
+  const csvRow = (cols) => cols.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';');
+  const lines = [];
+
+  lines.push(csvRow(['Periode', `${stats.start} au ${stats.end}`]));
+  lines.push('');
+  lines.push(csvRow(['Totaux']));
+  lines.push(csvRow(['Nombre de locations', stats.totals.nbLocations]));
+  lines.push(csvRow(['Nombre de participants', stats.totals.nbParticipants]));
+  lines.push(csvRow(["Chiffre d'affaires", stats.totals.chiffreAffaires.toFixed(2)]));
+  lines.push(csvRow(['Panier moyen', stats.totals.panierMoyen.toFixed(2)]));
+  lines.push('');
+  lines.push(csvRow(['Frequentation par jour']));
+  lines.push(csvRow(['Date', 'Nombre de locations']));
+  stats.frequentationParJour.forEach((r) => lines.push(csvRow([r.date, r.count])));
+  lines.push('');
+  lines.push(csvRow(['Repartition par reglement']));
+  lines.push(csvRow(['Type', 'Nombre']));
+  stats.repartitionReglement.forEach((r) => lines.push(csvRow([r.type, r.count])));
+  lines.push('');
+  lines.push(csvRow(['Sources de decouverte']));
+  lines.push(csvRow(['Source', 'Nombre']));
+  stats.sourcesDecouverte.forEach((r) => lines.push(csvRow([r.source, r.count])));
+  lines.push('');
+  lines.push(csvRow(['Creneaux les plus demandes']));
+  lines.push(csvRow(['Heure', 'Nombre']));
+  stats.topCreneaux.forEach((r) => lines.push(csvRow([r.heure, r.count])));
+
+  const bom = '﻿';
+  const csv = bom + lines.join('\r\n');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="statistiques-${stats.start}_${stats.end}.csv"`);
+  res.send(csv);
 });
 
 module.exports = router;
