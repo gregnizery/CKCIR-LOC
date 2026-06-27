@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Espace staff — CKCIR</title>
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="page-wrap" style="max-width:480px;">
+    <header class="club-header">
+      <div class="logo-line">
+        <img src="/img/logo.svg" class="club-logo" alt="Logo CKCIR" />
+        <h1>Club de Canoë-Kayak de l'Île Robinson (CKCIR Saint-Grégoire)</h1>
+      </div>
+      <p class="ffck-line">affilié à la Fédération Française de Canoë-Kayak (FFCK)</p>
+    </header>
+    <div class="club-header-sep"></div>
+
+    <div class="login-box">
+      <h2 style="color:var(--navy); margin-top:0;">Espace staff</h2>
+      <p id="error-msg" class="error-msg hidden">Mot de passe incorrect.</p>
+      <form method="POST" action="/admin/login">
+        <div class="field">
+          <label for="password">Mot de passe</label>
+          <input type="password" id="password" name="password" required autofocus />
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;">Se connecter</button>
+      </form>
+    </div>
+
+    <footer class="club-footer">
+      Île Robinson — 35760 Saint-Grégoire — 06 07 89 31 03<br />
+      infockcir@gmail.com — ckcir.net
+    </footer>
+  </div>
+
+  <script>
+    if (new URLSearchParams(window.location.search).get('error')) {
+      document.getElementById('error-msg').classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>

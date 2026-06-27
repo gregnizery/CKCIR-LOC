@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Contrat de location — CKCIR</title>
+<link rel="stylesheet" href="/css/style.css" />
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+</head>
+<body>
+  <div class="page-wrap">
+    <header class="club-header">
+      <div class="logo-line">
+        <img src="/img/logo.svg" class="club-logo" alt="Logo CKCIR" />
+        <h1>Club de Canoë-Kayak de l'Île Robinson (CKCIR Saint-Grégoire)</h1>
+      </div>
+      <p class="ffck-line">affilié à la Fédération Française de Canoë-Kayak (FFCK)</p>
+    </header>
+    <div class="club-header-sep"></div>
+
+    <!-- ===== FORMULAIRE ===== -->
+    <div id="form-view">
+      <div class="bandeau-titre">CONTRAT DE LOCATION</div>
+
+      <div class="progress-bar">
+        <div class="progress-step active" data-step="1"></div>
+        <div class="progress-step" data-step="2"></div>
+        <div class="progress-step" data-step="3"></div>
+        <div class="progress-step" data-step="4"></div>
+      </div>
+      <div class="progress-labels">
+        <span data-step="1">Représentant</span>
+        <span data-step="2">Membres</span>
+        <span data-step="3">Attestation</span>
+        <span data-step="4">Récapitulatif</span>
+      </div>
+
+      <p id="form-error" class="error-msg hidden"></p>
+
+      <!-- ÉTAPE 1 -->
+      <section class="step-panel" data-step-panel="1">
+        <div class="section-header">Représentant du groupe</div>
+        <div class="section-body">
+          <div class="field-row">
+            <div class="field">
+              <label for="rep-nom">Nom <span class="req">*</span></label>
+              <input type="text" id="rep-nom" required />
+            </div>
+            <div class="field">
+              <label for="rep-prenom">Prénom <span class="req">*</span></label>
+              <input type="text" id="rep-prenom" required />
+            </div>
+          </div>
+          <div class="field">
+            <label for="rep-adresse">Adresse <span class="req">*</span></label>
+            <input type="text" id="rep-adresse" required />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="rep-ville">Ville <span class="req">*</span></label>
+              <input type="text" id="rep-ville" required />
+            </div>
+            <div class="field">
+              <label for="rep-cp">Code postal <span class="req">*</span></label>
+              <input type="text" id="rep-cp" required />
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="rep-tel">Téléphone <span class="req">*</span></label>
+              <input type="tel" id="rep-tel" required />
+            </div>
+            <div class="field">
+              <label for="rep-email">Email <span class="req">*</span></label>
+              <input type="email" id="rep-email" required />
+            </div>
+          </div>
+
+          <label>Comment avez-vous connu le CKCIR ?</label>
+          <div class="checkbox-row"><input type="checkbox" class="source-cb" value="site_internet" /> <span>Site internet</span></div>
+          <div class="checkbox-row"><input type="checkbox" class="source-cb" value="reseaux_sociaux" /> <span>Réseaux sociaux</span></div>
+          <div class="checkbox-row"><input type="checkbox" class="source-cb" value="flyer" /> <span>Flyer ou affiche</span></div>
+          <div class="checkbox-row"><input type="checkbox" class="source-cb" value="bouche_a_oreille" /> <span>Bouche-à-oreille</span></div>
+          <div class="checkbox-row"><input type="checkbox" class="source-cb" value="autre" /> <span>Autre</span></div>
+        </div>
+        <div class="btn-row">
+          <span></span>
+          <button type="button" class="btn btn-primary" data-next>Suivant</button>
+        </div>
+      </section>
+
+      <!-- ÉTAPE 2 -->
+      <section class="step-panel hidden" data-step-panel="2">
+        <div class="section-header">Membres du groupe</div>
+        <div class="section-body">
+          <div class="card">
+            Seul le <strong>représentant du groupe</strong> signera le contrat, à la dernière étape, au nom de l'ensemble des membres listés ci-dessous (voir l'attestation sur l'honneur à l'étape suivante).
+          </div>
+          <div id="membres-container"></div>
+          <button type="button" id="btn-add-membre" class="btn btn-secondary">+ Ajouter un membre</button>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" data-prev>Précédent</button>
+          <button type="button" class="btn btn-primary" data-next>Suivant</button>
+        </div>
+      </section>
+
+      <!-- ÉTAPE 3 -->
+      <section class="step-panel hidden" data-step-panel="3">
+        <div class="section-header">Attestation sur l'honneur</div>
+        <div class="section-body">
+          <div class="card">
+            <ul style="margin:0; padding-left:18px; font-size:14px;">
+              <li>Je sais nager 25 mètres, m'immerger et je suis apte à la pratique des sports nautiques</li>
+              <li>J'ai reçu mon matériel en parfait état de marche et j'ai été informé de la zone de navigation et des parcours autorisés</li>
+              <li>Je suis responsable juridiquement du matériel loué dès sa prise en charge et ce jusqu'à sa restitution</li>
+              <li>Je vais utiliser le matériel dans les conditions normales de navigation et du nombre d'utilisateurs par embarcation</li>
+              <li>Je m'engage à porter en permanence mon gilet d'aide à la flottabilité ainsi que des chaussures fermées</li>
+              <li>Je m'engage à verser selon ma responsabilité en cas de sinistre, perte ou casse du matériel, le montant des frais de réparation, d'intervention ou de remplacement du matériel</li>
+              <li>Je m'engage à verser en cas de dépassement horaire le supplément écoulé au prorata des tarifs en vigueur</li>
+              <li>Je m'engage à respecter le milieu naturel et les autres utilisateurs du site</li>
+              <li>Je m'engage à accepter le fait que le loueur reste seul juge de la compétence des participants et peut sans préavis refuser le départ d'embarcations réservées suivant l'évolution des conditions de navigation</li>
+              <li>Je me porte garant pour toute personne dont je suis le responsable légal au regard des engagements précédents</li>
+            </ul>
+          </div>
+          <div class="checkbox-row" style="margin-top:16px;">
+            <input type="checkbox" id="attestation-cb" />
+            <span>J'ai lu et j'accepte l'ensemble des engagements ci-dessus.</span>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" data-prev>Précédent</button>
+          <button type="button" class="btn btn-primary" data-next>Suivant</button>
+        </div>
+      </section>
+
+      <!-- ÉTAPE 4 -->
+      <section class="step-panel hidden" data-step-panel="4">
+        <div class="section-header">Récapitulatif &amp; signature finale</div>
+        <div class="section-body">
+          <table class="data-table" style="margin-bottom:16px;">
+            <thead><tr><th>Participants</th><th>Montant total</th><th>Règlement</th></tr></thead>
+            <tbody>
+              <tr>
+                <td id="recap-nb-participants">—</td>
+                <td>
+                  <input type="number" id="recap-montant" min="0" step="0.01" placeholder="0.00" style="width:110px; display:inline-block;" /> €
+                </td>
+                <td>
+                  <select id="recap-reglement">
+                    <option value="cb">CB</option>
+                    <option value="especes">Espèces</option>
+                    <option value="cheque">Chèque</option>
+                    <option value="virement">Virement</option>
+                  </select>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="recap-date">Date</label>
+              <input type="date" id="recap-date" />
+            </div>
+            <div class="field">
+              <label for="recap-heure">Heure</label>
+              <input type="time" id="recap-heure" />
+            </div>
+          </div>
+
+          <div class="card">
+            En signant ci-dessous, <strong>vous seul(e), en tant que représentant du groupe</strong>, certifiez sur l'honneur l'exactitude des informations fournies pour vous-même et pour l'ensemble des membres listés à l'étape précédente, et vous vous portez garant(e) pour chacun d'eux — conformément à l'attestation que vous avez validée. Aucune autre signature n'est requise.
+          </div>
+
+          <label>Signature du représentant <span class="req">*</span></label>
+          <div class="signature-wrap">
+            <canvas id="sig-final"></canvas>
+            <div class="signature-actions">
+              <button type="button" class="btn btn-secondary" data-clear-sig="sig-final" style="padding:5px 12px; font-size:12px;">Effacer</button>
+            </div>
+          </div>
+          <p class="signature-note">Signature précédée de la mention « lu et approuvé »</p>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" data-prev>Précédent</button>
+          <button type="button" class="btn btn-primary" id="btn-submit">Valider et signer le contrat</button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===== CONFIRMATION ===== -->
+    <div id="confirmation-view" class="hidden confirmation-box">
+      <div class="check-circle">✓</div>
+      <h2>Contrat enregistré — Merci !</h2>
+      <p class="numero">Numéro de contrat : <strong id="confirmation-numero"></strong></p>
+      <a id="confirmation-pdf-link" class="btn btn-primary" href="#">Télécharger le PDF</a>
+    </div>
+
+    <footer class="club-footer">
+      Île Robinson — 35760 Saint-Grégoire — 06 07 89 31 03<br />
+      infockcir@gmail.com — ckcir.net
+    </footer>
+  </div>
+
+  <!-- Modèle (template) d'une carte membre, dupliqué en JS -->
+  <template id="membre-template">
+    <div class="membre-card" data-membre-card>
+      <button type="button" class="btn-remove" data-remove-membre>✕ Retirer</button>
+      <div class="membre-title" data-membre-title>Membre</div>
+      <div class="field-row">
+        <div class="field">
+          <label>Nom <span class="req">*</span></label>
+          <input type="text" data-field="nom" required />
+        </div>
+        <div class="field">
+          <label>Prénom <span class="req">*</span></label>
+          <input type="text" data-field="prenom" required />
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Civilité <span class="req">*</span></label>
+          <select data-field="civilite" required>
+            <option value="">—</option>
+            <option value="M.">M.</option>
+            <option value="Mme">Mme</option>
+            <option value="Autre">Autre</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Date de naissance <span class="req">*</span></label>
+          <input type="date" data-field="date_naissance" required />
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script src="/js/form.js"></script>
+</body>
+</html>
