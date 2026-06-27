@@ -72,8 +72,15 @@ la confirmation client).
    - Sur [render.com](https://render.com), créez un compte (gratuit), puis
      `New + → Blueprint` et pointez vers ce repo GitHub : Render lit le
      fichier [render.yaml](render.yaml) à la racine et propose
-     automatiquement la configuration du service (build `npm install`,
-     démarrage `npm start`, plan gratuit).
+     automatiquement la configuration du service.
+   - Le service est buildé via le [Dockerfile](Dockerfile) du dépôt (plutôt
+     que le runtime Node natif de Render) : `@sparticuz/chromium-min` est
+     conçu pour AWS Lambda et provoque une erreur `spawn ETXTBSY` sur un
+     conteneur classique comme Render (extraction du binaire Chromium dans
+     un `/tmp` qui ne se comporte pas comme sur Lambda). Le Dockerfile
+     installe donc un vrai paquet `chromium` via `apt-get` et expose son
+     chemin via `CHROME_EXECUTABLE_PATH=/usr/bin/chromium`, exactement comme
+     en local avec un Chrome installé sur la machine.
    - Lors de la validation du Blueprint, Render demande la valeur des
      variables marquées `sync: false` : renseignez `DATABASE_URL` (collée
      depuis Neon à l'étape 1) et `ADMIN_PASSWORD` (mot de passe de l'espace
