@@ -1,4 +1,11 @@
 (function () {
+  // Toute donnee saisie par un client (nom, adresse, etc.) doit passer par
+  // ici avant d'etre injectee via innerHTML : sinon un client malveillant
+  // peut stocker du HTML/JS qui s'executerait dans la session admin.
+  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+
   const todayStr = () => {
     const now = new Date();
     const y = now.getFullYear();
@@ -38,11 +45,11 @@
     data.locations.forEach((loc) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${loc.heure_location}</td>
-        <td>${loc.representant_prenom} ${loc.representant_nom}</td>
-        <td>${loc.nb_participants}</td>
+        <td>${esc(loc.heure_location)}</td>
+        <td>${esc(loc.representant_prenom)} ${esc(loc.representant_nom)}</td>
+        <td>${esc(loc.nb_participants)}</td>
         <td>${fmtMontant(loc.montant_total)}</td>
-        <td>${REGLEMENT_LABELS[loc.type_reglement] || loc.type_reglement}</td>
+        <td>${esc(REGLEMENT_LABELS[loc.type_reglement] || loc.type_reglement)}</td>
         <td>
           <button class="btn btn-secondary btn-voir" data-id="${loc.id}" style="padding:4px 10px; font-size:12px;">👁 Voir</button>
           <a class="btn btn-secondary" href="/api/locations/${loc.id}/pdf" style="padding:4px 10px; font-size:12px;">📄 PDF</a>
@@ -53,7 +60,7 @@
 
     const totalsBar = document.getElementById('jour-totals');
     const repartition = Object.entries(data.totals.parReglement)
-      .map(([type, montant]) => `${REGLEMENT_LABELS[type] || type} : <strong>${fmtMontant(montant)}</strong>`)
+      .map(([type, montant]) => `${esc(REGLEMENT_LABELS[type] || type)} : <strong>${fmtMontant(montant)}</strong>`)
       .join(' &nbsp;|&nbsp; ');
 
     totalsBar.innerHTML = `
@@ -90,16 +97,16 @@
     const loc = data.location;
 
     const membresHtml = data.membres.map((m) => `
-      <tr><td>${m.civilite}</td><td>${m.nom}</td><td>${m.prenom}</td><td>${new Date(m.date_naissance).toLocaleDateString('fr-FR')}</td></tr>
+      <tr><td>${esc(m.civilite)}</td><td>${esc(m.nom)}</td><td>${esc(m.prenom)}</td><td>${new Date(m.date_naissance).toLocaleDateString('fr-FR')}</td></tr>
     `).join('');
 
     document.getElementById('detail-content').innerHTML = `
-      <p><strong>N° contrat :</strong> ${data.numero}</p>
-      <p><strong>Représentant :</strong> ${loc.representant_prenom} ${loc.representant_nom}<br/>
-        ${loc.representant_adresse}, ${loc.representant_cp} ${loc.representant_ville}<br/>
-        ${loc.representant_tel} — ${loc.representant_email}</p>
-      <p><strong>Date / heure :</strong> ${new Date(loc.date_location).toLocaleDateString('fr-FR')} à ${loc.heure_location}</p>
-      <p><strong>Participants :</strong> ${loc.nb_participants} — <strong>Montant :</strong> ${fmtMontant(loc.montant_total)} — <strong>Règlement :</strong> ${REGLEMENT_LABELS[loc.type_reglement] || loc.type_reglement}</p>
+      <p><strong>N° contrat :</strong> ${esc(data.numero)}</p>
+      <p><strong>Représentant :</strong> ${esc(loc.representant_prenom)} ${esc(loc.representant_nom)}<br/>
+        ${esc(loc.representant_adresse)}, ${esc(loc.representant_cp)} ${esc(loc.representant_ville)}<br/>
+        ${esc(loc.representant_tel)} — ${esc(loc.representant_email)}</p>
+      <p><strong>Date / heure :</strong> ${new Date(loc.date_location).toLocaleDateString('fr-FR')} à ${esc(loc.heure_location)}</p>
+      <p><strong>Participants :</strong> ${esc(loc.nb_participants)} — <strong>Montant :</strong> ${fmtMontant(loc.montant_total)} — <strong>Règlement :</strong> ${esc(REGLEMENT_LABELS[loc.type_reglement] || loc.type_reglement)}</p>
       <table class="data-table">
         <thead><tr><th>Civilité</th><th>Nom</th><th>Prénom</th><th>Naissance</th></tr></thead>
         <tbody>${membresHtml}</tbody>
@@ -172,7 +179,7 @@
       tr.appendChild(uuidTd);
       tr.appendChild(carteTd);
       tr.insertAdjacentHTML('beforeend', `
-        <td>${row.civilite}</td><td>${row.nom}</td><td>${row.prenom}</td><td>${dob}</td><td>${row.email}</td>
+        <td>${esc(row.civilite)}</td><td>${esc(row.nom)}</td><td>${esc(row.prenom)}</td><td>${dob}</td><td>${esc(row.email)}</td>
       `);
       tr.addEventListener('click', () => {
         const text = [row.qr_uuid || '', row.carte_prise ? 'Oui' : 'Non', row.civilite, row.nom, row.prenom, dob, row.email].join('\t');
@@ -259,7 +266,7 @@
     });
 
     const creneauxTbody = document.getElementById('creneaux-tbody');
-    creneauxTbody.innerHTML = data.topCreneaux.map((c) => `<tr><td>${c.heure}</td><td>${c.count}</td></tr>`).join('');
+    creneauxTbody.innerHTML = data.topCreneaux.map((c) => `<tr><td>${esc(c.heure)}</td><td>${esc(c.count)}</td></tr>`).join('');
   }
 
   // ===== Init =====

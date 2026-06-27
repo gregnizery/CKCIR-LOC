@@ -1,4 +1,5 @@
 const fs = require('fs');
+const crypto = require('crypto');
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/db');
@@ -8,6 +9,28 @@ const { requireAdmin } = require('../middleware/auth');
 function isNonEmptyString(v) {
   return typeof v === 'string' && v.trim().length > 0;
 }
+
+// data:image/png;base64,... uniquement : c'est strictement ce que produit
+// signature_pad cote client (toDataURL('image/png')). Toute autre valeur est
+// rejetee pour empecher l'injection de HTML/JS dans le PDF genere (la valeur
+// est inseree dans un attribut src sans echappement dans pdf-generator.js).
+const SIGNATURE_DATA_URI_RE = /^data:image\/png;base64,[A-Za-z0-9+/]+=*$/;
+
+function tokenMatches(provided, expected) {
+  if (typeof provided !== 'string' || typeof expected !== 'string' || !provided || !expected) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+// Ces champs sont des <select>/<input type="time"> cote client, mais rien
+// n'empeche un appel direct a l'API de poster autre chose : on revalide le
+// format ici (defense en profondeur, en plus de l'echappement a l'affichage).
+const CIVILITES = ['M.', 'Mme', 'Autre'];
+const TYPES_REGLEMENT = ['cb', 'especes', 'cheque', 'virement'];
+const SOURCES_DECOUVERTE = ['site_internet', 'reseaux_sociaux', 'flyer', 'bouche_a_oreille', 'autre'];
+const HEURE_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function validatePayload(body) {
   const errors = [];
@@ -23,20 +46,29 @@ function validatePayload(body) {
     body.membres.forEach((m, i) => {
       if (!isNonEmptyString(m.nom)) errors.push(`membres[${i}].nom requis`);
       if (!isNonEmptyString(m.prenom)) errors.push(`membres[${i}].prenom requis`);
-      if (!isNonEmptyString(m.civilite)) errors.push(`membres[${i}].civilite requis`);
+      if (!CIVILITES.includes(m.civilite)) errors.push(`membres[${i}].civilite invalide`);
       if (!isNonEmptyString(m.date_naissance)) errors.push(`membres[${i}].date_naissance requis`);
     });
   }
 
   if (body.attestation_acceptee !== true) errors.push('attestation_acceptee doit etre acceptee');
-  if (!isNonEmptyString(body.heure_location)) errors.push('heure_location requis');
+  if (!isNonEmptyString(body.heure_location) || !HEURE_RE.test(body.heure_location)) {
+    errors.push('heure_location invalide');
+  }
   if (!isNonEmptyString(body.date_location)) errors.push('date_location requis');
   if (!body.nb_participants || Number(body.nb_participants) < 1) errors.push('nb_participants requis');
   if (body.montant_total === undefined || body.montant_total === null || Number.isNaN(Number(body.montant_total))) {
     errors.push('montant_total requis');
   }
-  if (!isNonEmptyString(body.type_reglement)) errors.push('type_reglement requis');
-  if (!isNonEmptyString(body.signature_representant)) errors.push('signature_representant requise');
+  if (!TYPES_REGLEMENT.includes(body.type_reglement)) errors.push('type_reglement invalide');
+  if (!isNonEmptyString(body.signature_representant) || !SIGNATURE_DATA_URI_RE.test(body.signature_representant)) {
+    errors.push('signature_representant invalide');
+  }
+  if (body.source_decouverte !== undefined) {
+    if (!Array.isArray(body.source_decouverte) || !body.source_decouverte.every((s) => SOURCES_DECOUVERTE.includes(s))) {
+      errors.push('source_decouverte invalide');
+    }
+  }
 
   return errors;
 }
@@ -49,6 +81,7 @@ router.post('/locations', async (req, res) => {
   }
 
   const r = body.representant;
+  const accessToken = crypto.randomBytes(24).toString('hex');
   const client = await pool.connect();
   let location;
 
@@ -60,14 +93,14 @@ router.post('/locations', async (req, res) => {
         representant_nom, representant_prenom, representant_adresse, representant_ville,
         representant_cp, representant_tel, representant_email, source_decouverte,
         attestation_acceptee, heure_location, date_location, nb_participants,
-        montant_total, type_reglement, signature_representant
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+        montant_total, type_reglement, signature_representant, access_token
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
       RETURNING *`,
       [
         r.nom.trim(), r.prenom.trim(), r.adresse.trim(), r.ville.trim(), r.cp.trim(),
         r.tel.trim(), r.email.trim(), JSON.stringify(body.source_decouverte || []),
         true, body.heure_location, body.date_location, Number(body.nb_participants),
-        Number(body.montant_total), body.type_reglement, body.signature_representant,
+        Number(body.montant_total), body.type_reglement, body.signature_representant, accessToken,
       ],
     );
 
@@ -98,7 +131,7 @@ router.post('/locations', async (req, res) => {
   res.status(201).json({
     id: location.id,
     numero: numeroContrat(location.id),
-    pdfUrl: `/api/locations/${location.id}/pdf`,
+    pdfUrl: `/api/locations/${location.id}/pdf?token=${accessToken}`,
   });
 
   try {
@@ -138,6 +171,15 @@ router.get('/locations/:id/pdf', async (req, res) => {
   }
 
   const location = result.rows[0];
+
+  // L'id sequentiel ne suffit jamais a lui seul : il faut soit etre connecte
+  // en tant qu'admin, soit presenter le jeton recu a la creation du contrat
+  // (cf. audit securite : sans ca, n'importe qui pouvait enumerer les ids et
+  // telecharger le contrat de n'importe quel client).
+  const isAdmin = !!(req.session && req.session.isAdmin);
+  if (!isAdmin && !tokenMatches(req.query.token, location.access_token)) {
+    return res.status(403).send('Acces refuse');
+  }
 
   // Le PDF est normalement genere en arriere-plan juste apres la creation du
   // contrat ; s'il n'est pas encore pret (ou si le fichier a disparu apres un

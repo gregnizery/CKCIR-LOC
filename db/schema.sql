@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS locations (
   type_reglement TEXT NOT NULL,
   signature_representant TEXT NOT NULL,
   pdf_path TEXT,
-  statut TEXT NOT NULL DEFAULT 'actif'
+  statut TEXT NOT NULL DEFAULT 'actif',
+  access_token TEXT
 );
 
 -- Seul le representant signe le contrat (signature_representant sur
@@ -48,3 +49,10 @@ ALTER TABLE membres ADD COLUMN IF NOT EXISTS qr_uuid TEXT;
 -- Migration : le club prend une carte FFCK "1 jour" pour chaque locataire ;
 -- on note si c'est fait pour pouvoir suivre les oublis.
 ALTER TABLE membres ADD COLUMN IF NOT EXISTS carte_prise BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Migration : jeton d'acces non-devinable pour telecharger son propre PDF
+-- de contrat sans etre connecte en admin. L'id sequentiel seul ne doit
+-- jamais suffire (cf. audit securite : IDOR sur /api/locations/:id/pdf).
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS access_token TEXT;
+UPDATE locations SET access_token = md5(random()::text || clock_timestamp()::text || id::text)
+  WHERE access_token IS NULL;
