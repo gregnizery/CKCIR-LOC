@@ -157,22 +157,22 @@ router.get('/api/locations/export', requireAdmin, async (req, res) => {
 
 // ===== API: licences FFCK =====
 
-async function getLicencesRows(date) {
+async function getLicencesRows(start, end) {
   const result = await pool.query(
     `SELECT m.id, m.civilite, m.nom, m.prenom, m.date_naissance, m.qr_uuid, m.carte_prise,
             l.representant_email AS email, l.date_location
      FROM membres m
      JOIN locations l ON l.id = m.location_id
-     WHERE l.date_location = $1
-     ORDER BY l.heure_location ASC, m.ordre ASC`,
-    [date],
+     WHERE l.date_location BETWEEN $1 AND $2
+     ORDER BY l.date_location ASC, l.heure_location ASC, m.ordre ASC`,
+    [start, end],
   );
   return result.rows.map((row) => ({ ...row, qr_uuid: row.qr_uuid || DEFAULT_QR_UUID }));
 }
 
 router.get('/api/licences', requireAdmin, async (req, res) => {
   const date = req.query.date || todayStr();
-  const rows = await getLicencesRows(date);
+  const rows = await getLicencesRows(date, date);
   res.json({ date, rows });
 });
 
@@ -225,8 +225,9 @@ function ffckRows(rows) {
 }
 
 router.get('/api/licences/export', requireAdmin, async (req, res) => {
-  const date = req.query.date || todayStr();
-  const rows = await getLicencesRows(date);
+  const end = req.query.end || todayStr();
+  const start = req.query.start || end;
+  const rows = await getLicencesRows(start, end);
 
   const csvLines = [FFCK_HEADER.join(';')];
   ffckRows(rows).forEach((line) => {
@@ -237,13 +238,14 @@ router.get('/api/licences/export', requireAdmin, async (req, res) => {
   const csv = bom + csvLines.join('\r\n');
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="licences-ffck-${date}.csv"`);
+  res.setHeader('Content-Disposition', `attachment; filename="licences-ffck-${start}_${end}.csv"`);
   res.send(csv);
 });
 
 router.get('/api/licences/export.xlsx', requireAdmin, async (req, res) => {
-  const date = req.query.date || todayStr();
-  const rows = await getLicencesRows(date);
+  const end = req.query.end || todayStr();
+  const start = req.query.start || end;
+  const rows = await getLicencesRows(start, end);
 
   const ExcelJS = require('exceljs');
   const workbook = new ExcelJS.Workbook();
@@ -253,7 +255,7 @@ router.get('/api/licences/export.xlsx', requireAdmin, async (req, res) => {
   ffckRows(rows).forEach((line) => sheet.addRow(line));
 
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  res.setHeader('Content-Disposition', `attachment; filename="licences-ffck-${date}.xlsx"`);
+  res.setHeader('Content-Disposition', `attachment; filename="licences-ffck-${start}_${end}.xlsx"`);
   await workbook.xlsx.write(res);
   res.end();
 });

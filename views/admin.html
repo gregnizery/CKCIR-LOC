@@ -76,8 +76,6 @@
           <label for="licences-date">Date</label>
           <input type="date" id="licences-date" />
         </div>
-        <button class="btn btn-secondary" id="licences-export">Exporter CSV</button>
-        <button class="btn btn-secondary" id="licences-export-xlsx">Exporter XLSX</button>
       </div>
 
       <p style="font-size:13px; color:#555;">Saisissez l'UUID du QR code FFCK remis à chaque membre. Cliquez ailleurs sur une ligne pour la copier dans le presse-papier.</p>
@@ -97,6 +95,19 @@
           </thead>
           <tbody id="licences-tbody"></tbody>
         </table>
+      </div>
+
+      <div class="filter-row" style="margin-top:24px;">
+        <div class="field">
+          <label for="licences-export-start">Exporter du</label>
+          <input type="date" id="licences-export-start" />
+        </div>
+        <div class="field">
+          <label for="licences-export-end">au</label>
+          <input type="date" id="licences-export-end" />
+        </div>
+        <button class="btn btn-secondary" id="licences-export">Exporter CSV</button>
+        <button class="btn btn-secondary" id="licences-export-xlsx">Exporter XLSX</button>
       </div>
     </section>
 

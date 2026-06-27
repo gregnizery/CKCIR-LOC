@@ -185,11 +185,19 @@
   }
 
   licencesDateInput.addEventListener('change', loadLicences);
+
+  // Export des licences sur une periode (par defaut : le mois en cours)
+  const licencesExportStartInput = document.getElementById('licences-export-start');
+  const licencesExportEndInput = document.getElementById('licences-export-end');
+  const monthStart = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+  licencesExportStartInput.value = monthStart;
+  licencesExportEndInput.value = todayStr();
+
   document.getElementById('licences-export').addEventListener('click', () => {
-    window.location.href = `/admin/api/licences/export?date=${licencesDateInput.value}`;
+    window.location.href = `/admin/api/licences/export?start=${licencesExportStartInput.value}&end=${licencesExportEndInput.value}`;
   });
   document.getElementById('licences-export-xlsx').addEventListener('click', () => {
-    window.location.href = `/admin/api/licences/export.xlsx?date=${licencesDateInput.value}`;
+    window.location.href = `/admin/api/licences/export.xlsx?start=${licencesExportStartInput.value}&end=${licencesExportEndInput.value}`;
   });
 
   // ===== Onglet 3 : Statistiques =====
