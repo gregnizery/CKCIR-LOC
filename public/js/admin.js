@@ -131,6 +131,7 @@
     data.rows.forEach((row) => {
       const tr = document.createElement('tr');
       tr.className = 'copyable';
+      tr.classList.toggle('row-prise', !!row.carte_prise);
       const dob = new Date(row.date_naissance).toLocaleDateString('fr-FR');
 
       const uuidTd = document.createElement('td');
@@ -170,6 +171,7 @@
         if (res.ok) {
           const updated = await res.json();
           row.carte_prise = updated.carte_prise;
+          tr.classList.toggle('row-prise', !!row.carte_prise);
           carteTd.classList.add('row-flash');
           setTimeout(() => carteTd.classList.remove('row-flash'), 600);
         }
@@ -192,6 +194,18 @@
   }
 
   licencesDateInput.addEventListener('change', loadLicences);
+
+  // Plusieurs personnes peuvent avoir cet onglet ouvert en meme temps sans se
+  // parler (plusieurs tablettes/postes a l'accueil) : on rafraichit la liste
+  // periodiquement pour que le surlignage "carte prise" reste a jour partout,
+  // sans pour autant interrompre quelqu'un en train de saisir un UUID.
+  setInterval(() => {
+    const panel = document.getElementById('panel-licences');
+    const tbody = document.getElementById('licences-tbody');
+    if (!panel.classList.contains('active')) return;
+    if (tbody.contains(document.activeElement)) return;
+    loadLicences();
+  }, 12000);
 
   // Export des licences sur une periode (par defaut : le mois en cours)
   const licencesExportStartInput = document.getElementById('licences-export-start');

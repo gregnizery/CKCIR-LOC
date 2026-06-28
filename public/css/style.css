@@ -297,6 +297,15 @@ table.data-table tbody tr.row-flash {
   transition: background 0.2s ease;
 }
 
+table.data-table tbody tr.row-prise {
+  background: #EAF7ED;
+  box-shadow: inset 3px 0 0 #2E8B4F;
+}
+
+table.data-table tbody tr.row-prise:hover {
+  background: #DCF0E1;
+}
+
 /* ===== Barre de progression (form client) ===== */
 .progress-bar {
   display: flex;
