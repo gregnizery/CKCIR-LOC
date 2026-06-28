@@ -7,6 +7,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
 const { pool, initSchema } = require('./config/db');
+const { warmUpBrowser } = require('./lib/pdf-generator');
 const publicRoutes = require('./routes/public');
 const apiRoutes = require('./routes/api');
 const adminRoutes = require('./routes/admin');
@@ -108,6 +109,12 @@ async function start() {
   app.listen(PORT, () => {
     console.log(`CKCIR app demarree sur le port ${PORT}`);
   });
+
+  // Force le premier lancement de Chromium au demarrage plutot que de
+  // laisser les premieres requetes utilisateur concurrentes risquer
+  // l'erreur ETXTBSY (cf. lib/pdf-generator.js). N'empeche pas le serveur
+  // de repondre en attendant : ca tourne en arriere-plan.
+  warmUpBrowser();
 }
 
 start();
