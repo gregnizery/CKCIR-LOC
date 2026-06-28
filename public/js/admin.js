@@ -34,28 +34,64 @@
 
   const REGLEMENT_LABELS = { cb: 'CB', especes: 'Espèces', cheque: 'Chèque', virement: 'Virement' };
 
+  const jourShowAnnuleesInput = document.getElementById('jour-show-annulees');
+
   async function loadJour() {
     const date = jourDateInput.value;
-    const res = await fetch(`/admin/api/locations?date=${date}`);
+    const includeAnnulees = jourShowAnnuleesInput.checked ? '1' : '0';
+    const res = await fetch(`/admin/api/locations?date=${date}&include_annulees=${includeAnnulees}`);
     const data = await res.json();
 
     const tbody = document.getElementById('jour-tbody');
     tbody.innerHTML = '';
 
     data.locations.forEach((loc) => {
+      const annulee = loc.statut === 'annule';
       const tr = document.createElement('tr');
+      if (annulee) tr.classList.add('row-annulee');
+
+      const statutCell = annulee
+        ? `<span title="${esc(loc.motif_annulation || '')}">Annulée${loc.annule_le ? ` (${new Date(loc.annule_le).toLocaleDateString('fr-FR')})` : ''}</span>`
+        : 'Active';
+
+      const actionsCell = annulee
+        ? `<button class="btn btn-secondary btn-reactiver" data-id="${loc.id}" style="padding:4px 10px; font-size:12px;">↩ Réactiver</button>`
+        : `
+          <button class="btn btn-secondary btn-voir" data-id="${loc.id}" style="padding:4px 10px; font-size:12px;">👁 Voir</button>
+          <a class="btn btn-secondary" href="/api/locations/${loc.id}/pdf" style="padding:4px 10px; font-size:12px;">📄 PDF</a>
+          <button class="btn btn-secondary btn-annuler" data-id="${loc.id}" style="padding:4px 10px; font-size:12px; color:var(--red); border-color:var(--red);">✕ Annuler</button>
+        `;
+
       tr.innerHTML = `
         <td>${esc(loc.heure_location)}</td>
         <td>${esc(loc.representant_prenom)} ${esc(loc.representant_nom)}</td>
         <td>${esc(loc.nb_participants)}</td>
         <td>${fmtMontant(loc.montant_total)}</td>
         <td>${esc(REGLEMENT_LABELS[loc.type_reglement] || loc.type_reglement)}</td>
-        <td>
-          <button class="btn btn-secondary btn-voir" data-id="${loc.id}" style="padding:4px 10px; font-size:12px;">👁 Voir</button>
-          <a class="btn btn-secondary" href="/api/locations/${loc.id}/pdf" style="padding:4px 10px; font-size:12px;">📄 PDF</a>
-        </td>
+        <td>${statutCell}</td>
+        <td>${actionsCell}</td>
       `;
       tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('.btn-annuler').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const motif = window.prompt('Motif de l\'annulation (optionnel) :', '');
+        if (motif === null) return; // annule par l'utilisateur (bouton Annuler du prompt)
+        const res = await fetch(`/admin/api/locations/${b.dataset.id}/annuler`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ motif }),
+        });
+        if (res.ok) loadJour();
+      });
+    });
+
+    tbody.querySelectorAll('.btn-reactiver').forEach((b) => {
+      b.addEventListener('click', async () => {
+        const res = await fetch(`/admin/api/locations/${b.dataset.id}/reactiver`, { method: 'PATCH' });
+        if (res.ok) loadJour();
+      });
     });
 
     const totalsBar = document.getElementById('jour-totals');
@@ -74,6 +110,7 @@
   }
 
   jourDateInput.addEventListener('change', loadJour);
+  jourShowAnnuleesInput.addEventListener('change', loadJour);
 
   // Export des locations sur une periode (par defaut : le mois en cours)
   const exportStartInput = document.getElementById('locations-export-start');

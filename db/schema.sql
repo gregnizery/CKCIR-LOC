@@ -18,7 +18,10 @@ CREATE TABLE IF NOT EXISTS locations (
   signature_representant TEXT NOT NULL,
   pdf_path TEXT,
   statut TEXT NOT NULL DEFAULT 'actif',
-  access_token TEXT
+  access_token TEXT,
+  motif_annulation TEXT,
+  annule_le TIMESTAMPTZ,
+  reactive_le TIMESTAMPTZ
 );
 
 -- Seul le representant signe le contrat (signature_representant sur
@@ -56,3 +59,10 @@ ALTER TABLE membres ADD COLUMN IF NOT EXISTS carte_prise BOOLEAN NOT NULL DEFAUL
 ALTER TABLE locations ADD COLUMN IF NOT EXISTS access_token TEXT;
 UPDATE locations SET access_token = md5(random()::text || clock_timestamp()::text || id::text)
   WHERE access_token IS NULL;
+
+-- Migration : annulation tracee d'une location par le staff (cas d'erreur de
+-- saisie, doublon...) sans perdre l'historique - on garde le motif et les
+-- dates plutot que de supprimer la ligne.
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS motif_annulation TEXT;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS annule_le TIMESTAMPTZ;
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS reactive_le TIMESTAMPTZ;

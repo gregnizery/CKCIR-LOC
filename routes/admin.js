@@ -90,22 +90,59 @@ router.get('/', requireAdmin, (req, res) => {
 
 router.get('/api/locations', requireAdmin, async (req, res) => {
   const date = req.query.date || todayStr();
+  const includeAnnulees = req.query.include_annulees === '1';
+
   const result = await pool.query(
     `SELECT id, heure_location, representant_nom, representant_prenom,
-            nb_participants, montant_total, type_reglement
+            nb_participants, montant_total, type_reglement, statut,
+            motif_annulation, annule_le, reactive_le
      FROM locations
-     WHERE date_location = $1
+     WHERE date_location = $1 ${includeAnnulees ? '' : "AND statut != 'annule'"}
      ORDER BY heure_location ASC`,
     [date],
   );
 
   const totals = result.rows.reduce((acc, row) => {
+    if (row.statut === 'annule') return acc;
     acc.montant += Number(row.montant_total);
     acc.parReglement[row.type_reglement] = (acc.parReglement[row.type_reglement] || 0) + Number(row.montant_total);
     return acc;
   }, { montant: 0, parReglement: {} });
 
   res.json({ date, locations: result.rows, totals });
+});
+
+router.patch('/api/locations/:id/annuler', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const motif = typeof req.body.motif === 'string' ? req.body.motif.trim() : '';
+
+  const result = await pool.query(
+    `UPDATE locations SET statut = 'annule', motif_annulation = $1, annule_le = now()
+     WHERE id = $2 RETURNING id, statut, motif_annulation, annule_le`,
+    [motif || null, id],
+  );
+
+  if (!result.rows.length) {
+    return res.status(404).json({ error: 'Location introuvable' });
+  }
+
+  res.json(result.rows[0]);
+});
+
+router.patch('/api/locations/:id/reactiver', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+
+  const result = await pool.query(
+    `UPDATE locations SET statut = 'actif', reactive_le = now()
+     WHERE id = $1 RETURNING id, statut, motif_annulation, annule_le, reactive_le`,
+    [id],
+  );
+
+  if (!result.rows.length) {
+    return res.status(404).json({ error: 'Location introuvable' });
+  }
+
+  res.json(result.rows[0]);
 });
 
 router.get('/api/locations/export', requireAdmin, async (req, res) => {
@@ -269,7 +306,7 @@ async function computeStats(period, refDateStr) {
     `SELECT date_location, heure_location, nb_participants, montant_total,
             type_reglement, source_decouverte
      FROM locations
-     WHERE date_location BETWEEN $1 AND $2`,
+     WHERE date_location BETWEEN $1 AND $2 AND statut != 'annule'`,
     [start, end],
   );
 
