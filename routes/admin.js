@@ -34,30 +34,46 @@ function toYMD(d) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function dateRangeForPeriod(period, refDateStr) {
-  const ref = refDateStr ? new Date(`${refDateStr}T00:00:00`) : new Date();
-  let start;
-  let end;
+const CRENEAU_ORDER = ['Avant 10h', '10h–12h', '12h–14h', '14h–16h', '16h–18h', 'Après 18h'];
+const TAILLE_ORDER = ['1 pers.', '2 pers.', '3 pers.', '4-5 pers.', '6-8 pers.', '9+ pers.'];
+const JOURS_SEMAINE = ['Dim.', 'Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.'];
 
-  if (period === 'year') {
-    start = new Date(ref.getFullYear(), 0, 1);
-    end = new Date(ref.getFullYear(), 11, 31);
-  } else if (period === 'month') {
-    start = new Date(ref.getFullYear(), ref.getMonth(), 1);
-    end = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
-  } else {
-    const day = ref.getDay();
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    start = new Date(ref);
-    start.setDate(ref.getDate() + diffToMonday);
-    end = new Date(start);
-    end.setDate(start.getDate() + 6);
-  }
+function getCreneauLabel(heureStr) {
+  if (!heureStr) return 'Autre';
+  const h = parseInt(heureStr.split(':')[0], 10);
+  if (isNaN(h)) return 'Autre';
+  if (h < 10) return 'Avant 10h';
+  if (h < 12) return '10h–12h';
+  if (h < 14) return '12h–14h';
+  if (h < 16) return '14h–16h';
+  if (h < 18) return '16h–18h';
+  return 'Après 18h';
+}
 
-  return {
-    start: toYMD(start),
-    end: toYMD(end),
-  };
+function getTailleLabel(nb) {
+  if (nb <= 1) return '1 pers.';
+  if (nb === 2) return '2 pers.';
+  if (nb === 3) return '3 pers.';
+  if (nb <= 5) return '4-5 pers.';
+  if (nb <= 8) return '6-8 pers.';
+  return '9+ pers.';
+}
+
+function prevPeriodRange(start, end) {
+  const s = new Date(`${start}T00:00:00`);
+  const e = new Date(`${end}T00:00:00`);
+  const duration = Math.round((e - s) / (24 * 3600 * 1000));
+  const prevEnd = new Date(s);
+  prevEnd.setDate(prevEnd.getDate() - 1);
+  const prevStart = new Date(prevEnd);
+  prevStart.setDate(prevEnd.getDate() - duration);
+  return { start: toYMD(prevStart), end: toYMD(prevEnd) };
+}
+
+function defaultStatsRange() {
+  const today = new Date();
+  const start = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+  return { start, end: todayStr() };
 }
 
 // ===== Pages =====
@@ -299,9 +315,21 @@ router.get('/api/licences/export.xlsx', requireAdmin, async (req, res) => {
 
 // ===== API: statistiques =====
 
-async function computeStats(period, refDateStr) {
-  const { start, end } = dateRangeForPeriod(period, refDateStr);
+async function computeTotalsOnly(start, end) {
+  const r = await pool.query(
+    `SELECT nb_participants, montant_total FROM locations
+     WHERE date_location BETWEEN $1 AND $2 AND statut != 'annule'`,
+    [start, end],
+  );
+  const rows = r.rows;
+  const nbLocations = rows.length;
+  const nbParticipants = rows.reduce((sum, x) => sum + Number(x.nb_participants), 0);
+  const chiffreAffaires = rows.reduce((sum, x) => sum + Number(x.montant_total), 0);
+  const panierMoyen = nbLocations ? chiffreAffaires / nbLocations : 0;
+  return { nbLocations, nbParticipants, chiffreAffaires, panierMoyen };
+}
 
+async function computeStats(start, end) {
   const result = await pool.query(
     `SELECT date_location, heure_location, nb_participants, montant_total,
             type_reglement, source_decouverte
@@ -320,6 +348,8 @@ async function computeStats(period, refDateStr) {
   const parReglement = {};
   const parSource = {};
   const parCreneau = {};
+  const parTaille = {};
+  const parJourSemaine = {};
 
   rows.forEach((r) => {
     const dateKey = toYMD(r.date_location);
@@ -333,8 +363,19 @@ async function computeStats(period, refDateStr) {
       parSource[label] = (parSource[label] || 0) + 1;
     });
 
-    const creneau = r.heure_location;
-    parCreneau[creneau] = (parCreneau[creneau] || 0) + 1;
+    const creneauLabel = getCreneauLabel(r.heure_location);
+    if (!parCreneau[creneauLabel]) parCreneau[creneauLabel] = { count: 0, ca: 0 };
+    parCreneau[creneauLabel].count++;
+    parCreneau[creneauLabel].ca += Number(r.montant_total);
+
+    const tailleLabel = getTailleLabel(Number(r.nb_participants));
+    parTaille[tailleLabel] = (parTaille[tailleLabel] || 0) + 1;
+
+    // getDay() utilise le fuseau local du processus Node ; on force midi pour
+    // eviter tout decalage DST au passage minuit.
+    const dow = new Date(`${toYMD(r.date_location)}T12:00:00`).getDay();
+    const jourLabel = JOURS_SEMAINE[dow];
+    parJourSemaine[jourLabel] = (parJourSemaine[jourLabel] || 0) + 1;
   });
 
   const frequentationParJour = Object.entries(parJour)
@@ -344,47 +385,84 @@ async function computeStats(period, refDateStr) {
   const repartitionReglement = Object.entries(parReglement).map(([type, count]) => ({ type, count }));
   const sourcesDecouverte = Object.entries(parSource).map(([source, count]) => ({ source, count }));
 
-  const topCreneaux = Object.entries(parCreneau)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([heure, count]) => ({ heure, count }));
+  const revenusParCreneau = CRENEAU_ORDER
+    .filter((c) => parCreneau[c])
+    .map((c) => ({ creneau: c, count: parCreneau[c].count, ca: parCreneau[c].ca }));
+
+  const tailleGroupes = TAILLE_ORDER
+    .filter((l) => parTaille[l])
+    .map((l) => ({ label: l, count: parTaille[l] }));
+
+  const topJoursSemaine = JOURS_SEMAINE.map((j) => ({ jour: j, count: parJourSemaine[j] || 0 }));
+
+  const prev = prevPeriodRange(start, end);
+  const comparaison = {
+    start: prev.start,
+    end: prev.end,
+    totals: await computeTotalsOnly(prev.start, prev.end),
+  };
 
   return {
-    period,
     start,
     end,
     totals: { nbLocations, nbParticipants, chiffreAffaires, panierMoyen },
+    comparaison,
     frequentationParJour,
     repartitionReglement,
     sourcesDecouverte,
-    topCreneaux,
+    revenusParCreneau,
+    tailleGroupes,
+    topJoursSemaine,
   };
 }
 
 router.get('/api/stats', requireAdmin, async (req, res) => {
-  const period = ['week', 'month', 'year'].includes(req.query.period) ? req.query.period : 'week';
-  const stats = await computeStats(period, req.query.date || todayStr());
-  res.json(stats);
+  try {
+    const { start, end } = (req.query.start && req.query.end)
+      ? { start: req.query.start, end: req.query.end }
+      : defaultStatsRange();
+    const stats = await computeStats(start, end);
+    res.json(stats);
+  } catch (err) {
+    console.error('Erreur stats:', err.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
 });
 
 router.get('/api/stats/export', requireAdmin, async (req, res) => {
-  const period = ['week', 'month', 'year'].includes(req.query.period) ? req.query.period : 'week';
-  const stats = await computeStats(period, req.query.date || todayStr());
+  try {
+  const { start, end } = (req.query.start && req.query.end)
+    ? { start: req.query.start, end: req.query.end }
+    : defaultStatsRange();
+  const stats = await computeStats(start, end);
 
   const csvRow = (cols) => cols.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';');
   const lines = [];
 
   lines.push(csvRow(['Periode', `${stats.start} au ${stats.end}`]));
+  lines.push(csvRow(['Periode precedente', `${stats.comparaison.start} au ${stats.comparaison.end}`]));
   lines.push('');
-  lines.push(csvRow(['Totaux']));
-  lines.push(csvRow(['Nombre de locations', stats.totals.nbLocations]));
-  lines.push(csvRow(['Nombre de participants', stats.totals.nbParticipants]));
-  lines.push(csvRow(["Chiffre d'affaires", stats.totals.chiffreAffaires.toFixed(2)]));
-  lines.push(csvRow(['Panier moyen', stats.totals.panierMoyen.toFixed(2)]));
+  lines.push(csvRow(['Totaux', 'Periode', 'Periode precedente']));
+  lines.push(csvRow(['Nombre de locations', stats.totals.nbLocations, stats.comparaison.totals.nbLocations]));
+  lines.push(csvRow(['Nombre de participants', stats.totals.nbParticipants, stats.comparaison.totals.nbParticipants]));
+  lines.push(csvRow(["Chiffre d'affaires", stats.totals.chiffreAffaires.toFixed(2), stats.comparaison.totals.chiffreAffaires.toFixed(2)]));
+  lines.push(csvRow(['Panier moyen', stats.totals.panierMoyen.toFixed(2), stats.comparaison.totals.panierMoyen.toFixed(2)]));
   lines.push('');
   lines.push(csvRow(['Frequentation par jour']));
   lines.push(csvRow(['Date', 'Nombre de locations']));
   stats.frequentationParJour.forEach((r) => lines.push(csvRow([r.date, r.count])));
+  lines.push('');
+  lines.push(csvRow(['Revenus par creneau']));
+  lines.push(csvRow(['Creneau', 'Nombre de locations', 'CA (euros)']));
+  stats.revenusParCreneau.forEach((r) => lines.push(csvRow([r.creneau, r.count, r.ca.toFixed(2)])));
+  lines.push('');
+  lines.push(csvRow(['Taille des groupes']));
+  lines.push(csvRow(['Taille', 'Nombre de locations']));
+  stats.tailleGroupes.forEach((r) => lines.push(csvRow([r.label, r.count])));
+  lines.push('');
+  lines.push(csvRow(['Jours de la semaine']));
+  lines.push(csvRow(['Jour', 'Nombre de locations']));
+  stats.topJoursSemaine.forEach((r) => lines.push(csvRow([r.jour, r.count])));
   lines.push('');
   lines.push(csvRow(['Repartition par reglement']));
   lines.push(csvRow(['Type', 'Nombre']));
@@ -393,10 +471,6 @@ router.get('/api/stats/export', requireAdmin, async (req, res) => {
   lines.push(csvRow(['Sources de decouverte']));
   lines.push(csvRow(['Source', 'Nombre']));
   stats.sourcesDecouverte.forEach((r) => lines.push(csvRow([r.source, r.count])));
-  lines.push('');
-  lines.push(csvRow(['Creneaux les plus demandes']));
-  lines.push(csvRow(['Heure', 'Nombre']));
-  stats.topCreneaux.forEach((r) => lines.push(csvRow([r.heure, r.count])));
 
   const bom = '﻿';
   const csv = bom + lines.join('\r\n');
@@ -404,6 +478,10 @@ router.get('/api/stats/export', requireAdmin, async (req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="statistiques-${stats.start}_${stats.end}.csv"`);
   res.send(csv);
+  } catch (err) {
+    console.error('Erreur export stats:', err.message);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
 });
 
 module.exports = router;

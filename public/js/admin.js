@@ -259,43 +259,59 @@
   });
 
   // ===== Onglet 3 : Statistiques =====
-  let currentPeriod = 'week';
-  let chartFreq, chartReglement, chartSources;
+  const statsStartInput = document.getElementById('stats-start');
+  const statsEndInput = document.getElementById('stats-end');
+  statsStartInput.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-01`;
+  statsEndInput.value = todayStr();
 
-  document.querySelectorAll('.stats-period').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.stats-period').forEach((b) => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentPeriod = btn.dataset.period;
-      loadStats();
-    });
-  });
+  let chartFreq, chartReglement, chartSources, chartRevenusCreneaux, chartTailleGroupe, chartJoursSemaine;
 
-  document.getElementById('stats-export').addEventListener('click', () => {
-    window.location.href = `/admin/api/stats/export?period=${currentPeriod}`;
-  });
+  function destroyChart(c) { if (c) c.destroy(); }
 
-  function destroyChart(c) {
-    if (c) c.destroy();
+  function setDelta(id, current, prev) {
+    const el = document.getElementById(id);
+    el.className = 'stat-delta';
+    if (prev === 0 && current === 0) { el.textContent = ''; return; }
+    if (prev === 0) { el.textContent = `+${typeof current === 'number' && !Number.isInteger(current) ? current.toFixed(2) : current} vs préc.`; el.classList.add('positive'); return; }
+    const pct = ((current - prev) / prev) * 100;
+    el.textContent = `${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% vs période préc.`;
+    el.classList.add(pct >= 0 ? 'positive' : 'negative');
   }
 
-  async function loadStats() {
-    const res = await fetch(`/admin/api/stats?period=${currentPeriod}`);
-    const data = await res.json();
+  const CHART_COLORS = ['#1B3A6B', '#C0392B', '#7f9cc4', '#e0a499', '#5a7fa8', '#d4887e'];
+  const CHART_OPTS_BAR = {
+    plugins: { legend: { display: false } },
+    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+  };
 
-    document.getElementById('stat-nb-locations').textContent = data.totals.nbLocations;
-    document.getElementById('stat-nb-participants').textContent = data.totals.nbParticipants;
-    document.getElementById('stat-ca').textContent = fmtMontant(data.totals.chiffreAffaires);
-    document.getElementById('stat-panier').textContent = fmtMontant(data.totals.panierMoyen);
+  async function loadStats() {
+    const start = statsStartInput.value;
+    const end = statsEndInput.value;
+    if (!start || !end) return;
+
+    const res = await fetch(`/admin/api/stats?start=${start}&end=${end}`);
+    const data = await res.json();
+    const t = data.totals;
+    const p = data.comparaison.totals;
+
+    document.getElementById('stat-nb-locations').textContent = t.nbLocations;
+    document.getElementById('stat-nb-participants').textContent = t.nbParticipants;
+    document.getElementById('stat-ca').textContent = fmtMontant(t.chiffreAffaires);
+    document.getElementById('stat-panier').textContent = fmtMontant(t.panierMoyen);
+
+    setDelta('stat-nb-locations-delta', t.nbLocations, p.nbLocations);
+    setDelta('stat-nb-participants-delta', t.nbParticipants, p.nbParticipants);
+    setDelta('stat-ca-delta', t.chiffreAffaires, p.chiffreAffaires);
+    setDelta('stat-panier-delta', t.panierMoyen, p.panierMoyen);
 
     destroyChart(chartFreq);
     chartFreq = new Chart(document.getElementById('chart-frequentation'), {
       type: 'bar',
       data: {
-        labels: data.frequentationParJour.map((d) => new Date(d.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })),
+        labels: data.frequentationParJour.map((d) => new Date(`${d.date}T12:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })),
         datasets: [{ label: 'Locations', data: data.frequentationParJour.map((d) => d.count), backgroundColor: '#1B3A6B' }],
       },
-      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+      options: CHART_OPTS_BAR,
     });
 
     destroyChart(chartReglement);
@@ -303,8 +319,36 @@
       type: 'pie',
       data: {
         labels: data.repartitionReglement.map((d) => REGLEMENT_LABELS[d.type] || d.type),
-        datasets: [{ data: data.repartitionReglement.map((d) => d.count), backgroundColor: ['#1B3A6B', '#C0392B', '#7f9cc4', '#e0a499'] }],
+        datasets: [{ data: data.repartitionReglement.map((d) => d.count), backgroundColor: CHART_COLORS }],
       },
+    });
+
+    destroyChart(chartRevenusCreneaux);
+    chartRevenusCreneaux = new Chart(document.getElementById('chart-revenus-creneau'), {
+      type: 'bar',
+      data: {
+        labels: data.revenusParCreneau.map((d) => d.creneau),
+        datasets: [
+          { label: 'CA (€)', data: data.revenusParCreneau.map((d) => d.ca), backgroundColor: '#C0392B', yAxisID: 'yCA' },
+          { label: 'Locations', data: data.revenusParCreneau.map((d) => d.count), backgroundColor: '#7f9cc4', yAxisID: 'yCount' },
+        ],
+      },
+      options: {
+        scales: {
+          yCA: { type: 'linear', position: 'left', beginAtZero: true, ticks: { callback: (v) => `${v} €` } },
+          yCount: { type: 'linear', position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { precision: 0 } },
+        },
+      },
+    });
+
+    destroyChart(chartTailleGroupe);
+    chartTailleGroupe = new Chart(document.getElementById('chart-taille-groupe'), {
+      type: 'bar',
+      data: {
+        labels: data.tailleGroupes.map((d) => d.label),
+        datasets: [{ label: 'Locations', data: data.tailleGroupes.map((d) => d.count), backgroundColor: '#1B3A6B' }],
+      },
+      options: CHART_OPTS_BAR,
     });
 
     destroyChart(chartSources);
@@ -312,13 +356,27 @@
       type: 'pie',
       data: {
         labels: data.sourcesDecouverte.map((d) => d.source),
-        datasets: [{ data: data.sourcesDecouverte.map((d) => d.count), backgroundColor: ['#1B3A6B', '#C0392B', '#7f9cc4', '#e0a499', '#F4F6F9'] }],
+        datasets: [{ data: data.sourcesDecouverte.map((d) => d.count), backgroundColor: CHART_COLORS }],
       },
     });
 
-    const creneauxTbody = document.getElementById('creneaux-tbody');
-    creneauxTbody.innerHTML = data.topCreneaux.map((c) => `<tr><td>${esc(c.heure)}</td><td>${esc(c.count)}</td></tr>`).join('');
+    destroyChart(chartJoursSemaine);
+    chartJoursSemaine = new Chart(document.getElementById('chart-jours-semaine'), {
+      type: 'bar',
+      data: {
+        labels: data.topJoursSemaine.map((d) => d.jour),
+        datasets: [{ label: 'Locations', data: data.topJoursSemaine.map((d) => d.count), backgroundColor: '#1B3A6B' }],
+      },
+      options: CHART_OPTS_BAR,
+    });
   }
+
+  statsStartInput.addEventListener('change', loadStats);
+  statsEndInput.addEventListener('change', loadStats);
+
+  document.getElementById('stats-export').addEventListener('click', () => {
+    window.location.href = `/admin/api/stats/export?start=${statsStartInput.value}&end=${statsEndInput.value}`;
+  });
 
   // ===== Init =====
   loadJour();

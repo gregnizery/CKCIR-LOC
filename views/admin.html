@@ -120,21 +120,37 @@
     <section class="tab-panel" id="panel-stats">
       <div class="filter-row">
         <div class="field">
-          <label>Période</label>
-          <div>
-            <button class="btn btn-secondary stats-period active" data-period="week">Semaine</button>
-            <button class="btn btn-secondary stats-period" data-period="month">Mois</button>
-            <button class="btn btn-secondary stats-period" data-period="year">Année</button>
-          </div>
+          <label for="stats-start">Du</label>
+          <input type="date" id="stats-start" />
+        </div>
+        <div class="field">
+          <label for="stats-end">au</label>
+          <input type="date" id="stats-end" />
         </div>
         <button class="btn btn-secondary" id="stats-export">Exporter CSV</button>
       </div>
 
       <div class="stat-cards">
-        <div class="stat-card"><div class="stat-value" id="stat-nb-locations">0</div><div class="stat-label">Total locations</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-nb-participants">0</div><div class="stat-label">Total participants</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-ca">0 €</div><div class="stat-label">Chiffre d'affaires</div></div>
-        <div class="stat-card"><div class="stat-value" id="stat-panier">0 €</div><div class="stat-label">Panier moyen</div></div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-nb-locations">0</div>
+          <div class="stat-delta" id="stat-nb-locations-delta"></div>
+          <div class="stat-label">Total locations</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-nb-participants">0</div>
+          <div class="stat-delta" id="stat-nb-participants-delta"></div>
+          <div class="stat-label">Total participants</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-ca">0 €</div>
+          <div class="stat-delta" id="stat-ca-delta"></div>
+          <div class="stat-label">Chiffre d'affaires</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-panier">0 €</div>
+          <div class="stat-delta" id="stat-panier-delta"></div>
+          <div class="stat-label">Panier moyen</div>
+        </div>
       </div>
 
       <div class="charts-row">
@@ -150,15 +166,23 @@
 
       <div class="charts-row">
         <div class="chart-box">
+          <h3>Revenus par créneau</h3>
+          <canvas id="chart-revenus-creneau"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Taille des groupes</h3>
+          <canvas id="chart-taille-groupe"></canvas>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-box">
           <h3>Sources de découverte du club</h3>
           <canvas id="chart-sources"></canvas>
         </div>
         <div class="chart-box">
-          <h3>Top 5 des créneaux les plus chargés</h3>
-          <table class="data-table">
-            <thead><tr><th>Créneau</th><th>Nombre de locations</th></tr></thead>
-            <tbody id="creneaux-tbody"></tbody>
-          </table>
+          <h3>Jours de la semaine</h3>
+          <canvas id="chart-jours-semaine"></canvas>
         </div>
       </div>
     </section>

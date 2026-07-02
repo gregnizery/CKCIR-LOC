@@ -516,10 +516,20 @@ table.data-table tbody tr.row-prise:hover {
   color: var(--navy);
 }
 
+.stat-card .stat-delta {
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 16px;
+  margin: 2px 0;
+}
+
+.stat-card .stat-delta.positive { color: #2E8B4F; }
+.stat-card .stat-delta.negative { color: var(--red); }
+
 .stat-card .stat-label {
   font-size: 12px;
   color: #667;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .charts-row {
